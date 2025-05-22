@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Message } from "../components/Message/route";
 import { v4 as uuid } from "uuid";
 
@@ -10,6 +10,8 @@ export default function Chat() {
   const [incomingMessage, setIncomingMessage] = useState([]);
   const [userMessages, setUserMessages] = useState([]);
   const [assistantMessages, setAssistantMessages] = useState([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const chatWindowRef = useRef(null);
 
   useEffect(() => {
     // Fetch the public IP address when the component mounts
@@ -18,73 +20,75 @@ export default function Chat() {
       .then((ip) => ip.trim())
       .then((ip) => setIp(ip))
       .catch((error) => console.error("Error fetching IP:", error));
-  }, []); // Empty dependency array to run only once on mount
+
+    console.log("userMessages updated:", userMessages);
+  }, [userMessages]); // Empty dependency array to run only once on mount
+
+  useEffect(() => {
+    // Scroll to bottom when messages update
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, [incomingMessage, assistantMessages, userMessages]);
 
   // Handler for form submission
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevents page reload
-    console.log("messageText=", messageText);
+    e.preventDefault();
+    if (!messageText.trim()) return;
 
+    setIsStreaming(true);
+    const currentMessage = messageText;
+    setMessageText("");
+
+    // Add user message
+    const userMessageId = uuid();
     setUserMessages((prev) => [
       ...prev,
-      { _id: uuid(), role: "user", content: messageText },
+      { _id: userMessageId, role: "user", content: currentMessage },
     ]);
-    setMessageText(""); // Clear the message text
-
-    console.log("userMessages=", userMessages);
-
-    const response = await fetch(`/api/chat/sendMessage`, {
-      headers: {
-        "content-type": "application/json",
-      },
-      method: "POST",
-      body: JSON.stringify({ message: messageText }),
-    });
-
-    if (!response.ok) {
-      console.error("Error:", response.statusText);
-      return;
-    }
-    //https://mubin.io/streaming-real-time-openai-data-in-nextjs-a-practical-guide
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let content = "";
 
     try {
+      const response = await fetch(`/api/chat/sendMessage`, {
+        headers: { "content-type": "application/json" },
+        method: "POST",
+        body: JSON.stringify({ message: currentMessage }),
+      });
+
+      if (!response.ok) throw new Error(response.statusText);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      // Clear any previous incoming message
+      setIncomingMessage([]);
+
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log("Stream complete");
-          console.log(
-            "typeof incomingMessage",
-            typeof incomingMessage,
-            incomingMessage
-          );
-          console.log("IncomingMessage:", incomingMessage);
-          console.log("typeof userMessages", typeof userMessages, userMessages);
-          console.log("userMessages:", userMessages);
-          setAssistantMessages((prev) => [
-            ...prev,
-            {
-              _id: uuid(),
-              role: "assistant",
-              content: incomingMessage.join(""),
-            },
-          ]);
-          setIncomingMessage([]);
+          // Only add to assistantMessages if we have content
+          if (incomingMessage.length > 0) {
+            const completeMessage = incomingMessage.join("");
+            setAssistantMessages((prev) => [
+              ...prev,
+              {
+                _id: uuid(),
+                role: "assistant",
+                content: completeMessage,
+              },
+            ]);
+          }
           break;
         }
 
-        // Decode the stream chunk
         const chunk = decoder.decode(value);
-        console.log("Received chunk:", chunk);
-
-        // Update the UI with the new chunk
         setIncomingMessage((prev) => [...prev, chunk]);
       }
     } catch (error) {
-      console.error("Error reading stream:", error);
+      console.error("Error:", error);
+    } finally {
+      setIsStreaming(false);
+      setIncomingMessage([]);
     }
   };
 
@@ -97,31 +101,25 @@ export default function Chat() {
         </div>
         <div className="flex flex-col overflow-hidden">
           <div className="flex flex-1 overflow-scroll">
-            <div className="flex flex-col gap-2 p-4">
-              {/* ChatWindow */}
-              {/* {incomingMessage.map((chunk, index) => (
-                <div key={index}>{chunk}</div>
-              ))} */}
-              {assistantMessages.map((message) => (
-                <Message
-                  key={message._id}
-                  role={message.role}
-                  content={message.content}
-                />
-              ))}
-              {userMessages.map((message) => (
-                <Message
-                  key={message._id}
-                  role={message.role}
-                  content={message.content}
-                />
-              ))}
-              {/* Display the user's message
-              <Message
-                role="user"
-                content={messageText}
-                className="bg-blue-100"
-              /> */}
+            <div
+              className="flex flex-col gap-4 p-4 w-full"
+              id="chat-window"
+              ref={chatWindowRef}
+            >
+              {/* Interleave messages in chronological order */}
+              {[...userMessages, ...assistantMessages]
+                .sort((a, b) => a._id.localeCompare(b._id))
+                .map((message) => (
+                  <Message
+                    key={message._id}
+                    role={message.role}
+                    content={message.content}
+                  />
+                ))}
+              {/* Show streaming message at the end */}
+              {isStreaming && incomingMessage.length > 0 && (
+                <Message role="assistant" content={incomingMessage.join("")} />
+              )}
             </div>
           </div>
           <footer className="bg-gray-200 pt-10">
@@ -129,7 +127,7 @@ export default function Chat() {
               <fieldset className="flex gap-2 items-center w-full">
                 <textarea
                   className="flex-1 resize-none border-2 border-gray-300 rounded-md p-8"
-                  defaultValue={messageText}
+                  value={messageText}
                   placeholder="Send your message ..."
                   onChange={(e) => setMessageText(e.target.value)}
                 />
