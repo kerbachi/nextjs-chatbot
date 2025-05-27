@@ -28,6 +28,10 @@ export default function Chat() {
     e.preventDefault(); // Prevents page reload
     console.log("messageText=", messageText);
 
+    // setUserMessages((prev) => [
+    //   ...prev,
+    //   { _id: uuid(), role: "user", content: messageText },
+    // ]);
     const userMessage = { _id: uuid(), role: "user", content: messageText };
 
     setAllMessages((prev) => [...prev, userMessage]);
@@ -54,16 +58,7 @@ export default function Chat() {
     //https://mubin.io/streaming-real-time-openai-data-in-nextjs-a-practical-guide
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-
-    // The receiveed chunk =
-    // data: {"id":"chatcmpl-Bbny2fj9DPFJ9oGP3i5VZZsGux1vC",
-    // "object":"chat.completion.chunk",
-    // "created":1748349910,
-    // "model":"gpt-3.5-turbo-0125",
-    // "service_tier":"default",
-    // "system_fingerprint":null,
-    // "choices":[{"index":0,"delta":{"content":"?"},"logprobs":null,"finish_reason":null}]}
-    // Can be undefined too
+    let content = "";
 
     try {
       let chunks = [];
@@ -87,37 +82,19 @@ export default function Chat() {
           }
           // }
           setIncomingMessage([]);
-          reader.releaseLock();
           break;
         }
 
         // Decode the stream chunk
-        const raw = decoder.decode(value);
-        console.log("Received raw:", raw);
-        const lines = raw
-          .split("\n")
-          .filter((line) => line.trim().startsWith("data:"));
+        const chunk = decoder.decode(value);
+        console.log("Received chunk:", chunk);
 
-        for (const line of lines) {
-          const jsonStr = line.replace(/^data:\s*/, "").trim();
+        // Accumulate chunks locally for correct message assembly
+        chunks.push(chunk);
 
-          // Handle "[DONE]" signal from OpenAI (if any)
-          if (jsonStr === "[DONE]") {
-            continue;
-          }
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              chunks.push(content);
-              setIncomingMessage((prev) => [...prev, content]);
-            }
-          } catch (err) {
-            console.error("Failed to parse chunk:", jsonStr, err);
-          }
-        }
-      } // While
+        // Update the UI with the new chunk
+        setIncomingMessage((prev) => [...prev, chunk]);
+      }
     } catch (error) {
       console.error("Error reading stream:", error);
     }

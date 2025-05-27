@@ -14,7 +14,20 @@ const llm_provider_details = {
   },
   OpenRouter: {
     url: "https://openrouter.ai/api/v1/chat/completions",
-    model: "microsoft/phi-4-reasoning-plus:free",
+    // model: "microsoft/phi-4-reasoning-plus:free", // Very long answer
+    model: "deepseek/deepseek-chat-v3-0324:free", // Good english answer in Markdown format //answers in chinese
+    // model: "meta-llama/llama-4-maverick:free", Good english answer in Markdown format
+    // model: "deepseek/deepseek-r1:free", // Good english answer in Markdown format
+
+    // model: "qwen/qwen3-235b-a22b:free", // Good english answer but for raisoning not chat
+    // chunk content:
+    // {"id":"gen-1748381890-250NFRNh5d9cczHzJ4wk",
+    // "provider":"Chutes",
+    // "model":"qwen/qwen3-235b-a22b:free",
+    // "object":"chat.completion.chunk",
+    // "created":1748381890,
+    // "choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":","},
+    // "finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
@@ -22,7 +35,7 @@ const llm_provider_details = {
   },
 };
 
-const llm_provider = "OpenRouter"; //"OpenAI";
+const llm_provider = "OpenRouter"; //"OpenAI"; //
 
 console.log("llm_provider_details=", llm_provider_details[llm_provider]);
 
@@ -44,79 +57,88 @@ export async function POST(req) {
     if (!response.ok) {
       return NextResponse.json({ error: "OpenAI API error" }, { status: 500 });
     }
+
+    return new NextResponse(response.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error) {
     console.error("Error fetching from OpenAI API:", error);
     return NextResponse.json({ error: "OpenAI API error" }, { status: 500 });
   }
-
-  // Transform the response into a readable stream
-  const stream = new ReadableStream({
-    async start(controller) {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          // const chunk = decoder.decode(value);
-          // const lines = chunk.split("\n");
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-
-          // Keep the last line in buffer if it's incomplete
-          buffer = lines.pop();
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                controller.close();
-                return;
-              }
-              try {
-                const json = JSON.parse(data);
-                const text = json.choices[0]?.delta?.content || "";
-                if (text) {
-                  controller.enqueue(text);
-                }
-              } catch (e) {
-                console.error("Error parsing JSON:", e);
-              }
-            }
-          }
-        }
-
-        // Handle any remaining buffered line
-        if (buffer && buffer.startsWith("data: ")) {
-          const data = buffer.slice(6);
-          if (data !== "[DONE]") {
-            try {
-              const json = JSON.parse(data);
-              const text = json.choices[0]?.delta?.content || "";
-              if (text) {
-                controller.enqueue(text);
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-        }
-      } catch (error) {
-        controller.error(error);
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
 }
+
+//   // Transform the response into a readable stream
+//   const stream = new ReadableStream({
+//     async start(controller) {
+//       const reader = response.body.getReader();
+//       const decoder = new TextDecoder();
+//       let buffer = "";
+
+//       try {
+//         while (true) {
+//           const { done, value } = await reader.read();
+//           if (done) break;
+
+//           // const chunk = decoder.decode(value);
+//           // const lines = chunk.split("\n");
+//           buffer += decoder.decode(value, { stream: true });
+//           const lines = buffer.split("\n");
+
+//           // Keep the last line in buffer if it's incomplete
+//           buffer = lines.pop();
+
+//           for (const line of lines) {
+//             if (line.startsWith("data: ")) {
+//               const data = line.slice(6);
+//               if (data === "[DONE]") {
+//                 controller.close();
+//                 return;
+//               }
+//               try {
+//                 const json = JSON.parse(data);
+//                 const text = json.choices[0]?.delta?.content || "";
+//                 if (text) {
+//                   controller.enqueue(text);
+//                 }
+//               } catch (e) {
+//                 console.error("Error parsing JSON:", e);
+//               }
+//             }
+//           }
+//         }
+
+//         // Handle any remaining buffered line
+//         if (buffer && buffer.startsWith("data: ")) {
+//           const data = buffer.slice(6);
+//           if (data !== "[DONE]") {
+//             try {
+//               const json = JSON.parse(data);
+//               const text = json.choices[0]?.delta?.content || "";
+//               if (text) {
+//                 controller.enqueue(text);
+//               }
+//             } catch (e) {
+//               // Ignore
+//             }
+//           }
+//         }
+//       } catch (error) {
+//         controller.error(error);
+//       } finally {
+//         controller.close();
+//       }
+//     },
+//   });
+
+//   return new Response(stream, {
+//     headers: {
+//       "Content-Type": "text/event-stream",
+//       "Cache-Control": "no-cache",
+//       Connection: "keep-alive",
+//     },
+//   });
+// }

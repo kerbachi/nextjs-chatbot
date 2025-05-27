@@ -1,3 +1,7 @@
+// import { ReactMarkdown } from "react-markdown/lib/react-markdown";
+import ReactMarkdown from "react-markdown";
+import React from "react";
+
 export const Message = ({ role, content }) => {
   const isAssistant = role === "assistant";
 
@@ -12,7 +16,9 @@ export const Message = ({ role, content }) => {
           isAssistant ? "bg-gray-100 text-gray-800" : "bg-blue-500 text-white"
         }`}
       >
-        {content}
+        <div className="prose prose-invert">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );
