@@ -3,23 +3,49 @@ import { NextResponse } from "next/server";
 // Set the runtime to edge for optimized performance
 export const runtime = "edge";
 
-export async function POST(req) {
-  const { message } = await req.json();
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
+const llm_provider_details = {
+  OpenAI: {
+    url: "https://api.openai.com/v1/chat/completions",
+    model: "gpt-3.5-turbo",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: message }],
-      stream: true,
-    }),
-  });
+  },
+  OpenRouter: {
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    model: "microsoft/phi-4-reasoning-plus:free",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+  },
+};
 
-  if (!response.ok) {
+const llm_provider = "OpenRouter"; //"OpenAI";
+
+console.log("llm_provider_details=", llm_provider_details[llm_provider]);
+
+export async function POST(req) {
+  const { message } = await req.json();
+
+  let response;
+  try {
+    response = await fetch(llm_provider_details[llm_provider].url, {
+      method: "POST",
+      headers: llm_provider_details[llm_provider].headers,
+      body: JSON.stringify({
+        model: llm_provider_details[llm_provider].model,
+        messages: [{ role: "user", content: message }],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      return NextResponse.json({ error: "OpenAI API error" }, { status: 500 });
+    }
+  } catch (error) {
+    console.error("Error fetching from OpenAI API:", error);
     return NextResponse.json({ error: "OpenAI API error" }, { status: 500 });
   }
 

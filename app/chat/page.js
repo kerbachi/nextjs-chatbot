@@ -8,8 +8,9 @@ export default function Chat() {
   const [ip, setIp] = useState("0.0.0.0");
   const [messageText, setMessageText] = useState("");
   const [incomingMessage, setIncomingMessage] = useState([]);
-  const [userMessages, setUserMessages] = useState([]);
-  const [assistantMessages, setAssistantMessages] = useState([]);
+  // const [userMessages, setUserMessages] = useState([]);
+  // const [assistantMessages, setAssistantMessages] = useState([]);
+  const [allMessages, setAllMessages] = useState([]);
 
   useEffect(() => {
     // Fetch the public IP address when the component mounts
@@ -18,19 +19,23 @@ export default function Chat() {
       .then((ip) => ip.trim())
       .then((ip) => setIp(ip))
       .catch((error) => console.error("Error fetching IP:", error));
-
-    console.log("userMessages updated:", userMessages);
-  }, [userMessages]); // Empty dependency array to run only once on mount
+  }, []);
+  //   console.log("userMessages updated:", userMessages);
+  // }, [userMessages]); // Empty dependency array to run only once on mount
 
   // Handler for form submission
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevents page reload
     console.log("messageText=", messageText);
 
-    setUserMessages((prev) => [
-      ...prev,
-      { _id: uuid(), role: "user", content: messageText },
-    ]);
+    // setUserMessages((prev) => [
+    //   ...prev,
+    //   { _id: uuid(), role: "user", content: messageText },
+    // ]);
+    const userMessage = { _id: uuid(), role: "user", content: messageText };
+
+    setAllMessages((prev) => [...prev, userMessage]);
+
     setMessageText(""); // Clear the message text
 
     //The userMessages state appears as an empty array when the submit action is triggered
@@ -65,21 +70,17 @@ export default function Chat() {
           console.log("Stream complete, message:", completeMessage);
 
           if (completeMessage) {
-            // Only add if there's content
-            setAssistantMessages((prev) => {
-              console.log("Previous AssistantMessages messages:", prev);
-              const newMessages = [
-                ...prev,
-                {
-                  _id: uuid(),
-                  role: "assistant",
-                  content: completeMessage,
-                },
-              ];
-              console.log("New AssistantMessages messages:", newMessages);
-              return newMessages;
-            });
+            const assistantMessage = {
+              _id: uuid(),
+              role: "assistant",
+              content: completeMessage,
+            };
+            setAllMessages((prev) => [...prev, assistantMessage]);
+            // console.log("New AssistantMessages messages:", assistantMessage);
+            console.log("setAllMessages:", setAllMessages);
+            // return newMessages;
           }
+          // }
           setIncomingMessage([]);
           break;
         }
@@ -106,25 +107,18 @@ export default function Chat() {
           <div>Chathistory</div>
           <div>{ip}</div>
         </div>
-        <div className="flex flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden ">
           <div className="flex flex-1 overflow-scroll">
             <div className="flex flex-col gap-2 p-4" id="chat-window">
-              {/* ChatWindow */}
-              {/* {incomingMessage.map((chunk, index) => (
-                <div key={index}>{chunk}</div>
-              ))} */}
-              {assistantMessages.map((message) => (
+              {allMessages.map((message) => (
                 <Message
-                  key={message._id}
+                  key={message._id} // Add unique key prop here
                   role={message.role}
                   content={message.content}
-                />
-              ))}
-              {userMessages.map((message) => (
-                <Message
-                  key={message._id}
-                  role={message.role}
-                  content={message.content}
+                  //   message.role === "assistant"
+                  //     ? incomingMessage.join("") + message.content
+                  //     : message.content
+                  // }
                 />
               ))}
             </div>
