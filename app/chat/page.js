@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { Message } from "../components/Message/route";
 import { v4 as uuid } from "uuid";
+import { useUser } from "@auth0/nextjs-auth0";
+import Link from "next/link";
 
 export default function Chat() {
   const [ip, setIp] = useState("0.0.0.0");
   const [messageText, setMessageText] = useState("");
-  const [incomingMessage, setIncomingMessage] = useState([]);
-  // const [userMessages, setUserMessages] = useState([]);
-  // const [assistantMessages, setAssistantMessages] = useState([]);
   const [allMessages, setAllMessages] = useState([]);
+  const { user, isLoading, error } = useUser();
 
   useEffect(() => {
     // Fetch the public IP address when the component mounts
-    fetch("https://ifconfig.me/ip")
+    fetch("https://ifconfig.me/ip") //https://api.myip.com
       .then((response) => response.text())
       .then((ip) => ip.trim())
       .then((ip) => setIp(ip))
@@ -31,8 +31,11 @@ export default function Chat() {
     const userMessage = { _id: uuid(), role: "user", content: messageText };
 
     setAllMessages((prev) => [...prev, userMessage]);
-
     setMessageText(""); // Clear the message text
+
+    // Create temporary assistant message for streaming response
+    const assistantMessage = { _id: uuid(), role: "assistant", content: "" };
+    setAllMessages((prev) => [...prev, assistantMessage]);
 
     //The userMessages state appears as an empty array when the submit action is triggered
     //because React state updates are asynchronous. When you call setUserMessages, the state does not update immediately. Instead, React schedules the update and re-renders the component later.\
@@ -66,27 +69,11 @@ export default function Chat() {
     // Can be undefined too
 
     try {
-      let chunks = [];
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
-          const completeMessage = chunks.join("");
-          console.log("Stream complete, message:", completeMessage);
-
-          if (completeMessage) {
-            const assistantMessage = {
-              _id: uuid(),
-              role: "assistant",
-              content: completeMessage,
-            };
-            setAllMessages((prev) => [...prev, assistantMessage]);
-            // console.log("New AssistantMessages messages:", assistantMessage);
-            console.log("setAllMessages:", setAllMessages);
-            // return newMessages;
-          }
-          // }
-          setIncomingMessage([]);
+          console.log("Stream complete");
           reader.releaseLock();
           break;
         }
@@ -110,8 +97,18 @@ export default function Chat() {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
-              chunks.push(content);
-              setIncomingMessage((prev) => [...prev, content]);
+              setAllMessages((prev) => {
+                if (prev.length === 0) return prev;
+                const lastMessage = prev[prev.length - 1];
+                if (lastMessage?.role === "assistant") {
+                  const updatedMessage = {
+                    ...lastMessage,
+                    content: lastMessage.content + content,
+                  };
+                  return [...prev.slice(0, -1), updatedMessage];
+                }
+                return prev;
+              });
             }
           } catch (err) {
             console.error("Failed to parse chunk:", jsonStr, err);
@@ -127,21 +124,31 @@ export default function Chat() {
     <div>
       <div className="grid h-screen grid-cols-[150px_1fr]">
         <div>
+          <Link href="/">Home</Link>
           <div>Chathistory</div>
           <div>{ip}</div>
+          <div>{user ? user.name : "Guest"}</div>
+          <div>
+            {isLoading ? (
+              "Loading..."
+            ) : user ? (
+              <Link href="/api/auth/logout">Logout</Link>
+            ) : (
+              <Link href="/api/auth/login">Login</Link>
+            )}
+          </div>
         </div>
         <div className="flex flex-1 flex-col overflow-hidden ">
-          <div className="flex flex-1 overflow-scroll">
-            <div className="flex flex-col gap-2 p-4" id="chat-window">
+          <div className="flex flex-1 overflow-auto">
+            <div
+              className="flex w-flex flex-col stretch gap-2 p-4"
+              id="chat-window"
+            >
               {allMessages.map((message) => (
                 <Message
                   key={message._id} // Add unique key prop here
                   role={message.role}
                   content={message.content}
-                  //   message.role === "assistant"
-                  //     ? incomingMessage.join("") + message.content
-                  //     : message.content
-                  // }
                 />
               ))}
             </div>

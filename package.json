@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.6.0",
     "next": "15.3.2",
     "openai": "^4.99.0",
     "openai-edge-stream": "^2.0.1",

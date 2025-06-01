@@ -1,6 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth0 } from "../lib/auth0";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth0.getSession();
+
+  if (session) {
+    redirect("/chat");
+  }
+
   return (
     <div>
       {/* <title> My ChatBot app </title> */}
@@ -21,8 +29,8 @@ export default function Home() {
         </div>
       </div> */}
 
-      <div className="grid grid-cols-2">
-        <Link href="/chat">login</Link>
+      <div className="flex items-center justify-center h-screen space-x-4">
+        <Link href="/api/auth/login">login</Link>
         <Link href="/chat">signup</Link>
       </div>
     </div>
