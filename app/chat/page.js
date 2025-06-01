@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Message } from "../components/Message/route";
+import { Message } from "../components/Message/Message";
 import { v4 as uuid } from "uuid";
 import { useUser } from "@auth0/nextjs-auth0";
 import Link from "next/link";
