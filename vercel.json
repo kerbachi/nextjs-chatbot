@@ -20,6 +20,27 @@
           "value": "true"
         }
       ]
+    },
+    {
+      "source": "*75eb4ca6.vercel.app",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*75eb4ca6.vercel.app"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        }
+      ]
     }
   ]
 }
