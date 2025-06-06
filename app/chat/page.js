@@ -155,14 +155,19 @@ export default function Chat() {
           </div>
           <footer className="bg-gray-200 pt-10">
             <form onSubmit={handleSubmit}>
-              <fieldset className="flex gap-2 items-center w-full">
+              <fieldset className="flex gap-2">
                 <textarea
                   className="flex-1 resize-none border-2 border-gray-300 rounded-md p-8"
                   value={messageText}
                   placeholder="Send your message ..."
                   onChange={(e) => setMessageText(e.target.value)}
                 />
-                <input className="flex gap px-2" type="submit" value="Send" />
+                <button
+                  type="submit"
+                  className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-blue-300"
+                >
+                  Send
+                </button>
               </fieldset>
             </form>
           </footer>
