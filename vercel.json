@@ -22,7 +22,7 @@
       ]
     },
     {
-      "source": "*75eb4ca6.vercel.app",
+      "source": "*",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
