@@ -3,18 +3,29 @@ import { NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 
 export async function middleware(request) {
-  // Handle preflight requests
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, {
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,OPTIONS,PATCH,DELETE,POST,PUT",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
-  }
+  // Add CORS headers to all responses
+  const response =
+    request.method === "OPTIONS"
+      ? new NextResponse(null, { status: 200 })
+      : await handleRequest(request);
 
+  // Add CORS headers
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+  );
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
+  );
+
+  return response;
+}
+
+async function handleRequest(request) {
+  // Public paths that don't require authentication
   if (
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/api/auth/") ||
@@ -28,7 +39,7 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return await auth0.middleware(request);
+  return auth0.middleware(request);
 }
 
 export const config = {
